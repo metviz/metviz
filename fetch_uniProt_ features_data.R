@@ -5,6 +5,8 @@ library(jsonlite)
 # Available fields from Uniprot
 # https://www.uniprot.org/help/return_fields
 # https://www.uniprot.org/uniprotkb/Q8NBP7/entry
+# Pfam domain graphic view
+# https://web.archive.org/web/20160408051833/https://pfam.xfam.org/protein/P43694
 
 extract_pfam <- function(x) { 
   tryCatch({
