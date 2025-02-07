@@ -1,9 +1,9 @@
-- 👋 Hi, I’m @metviz
-- 👀 I’m interested in coding and building apps 
-- 🌱 I’m currently a Freshman in High School, actively learning Python, JavaScript, R, and Flutter. 
+- 👋 Hi, I’m Agasthya (@metviz)
+- 👀 I’m interested in coding and building apps to make a difference 
+- 🌱 I’m currently a Freshman at Raleigh Charter High School (RCHS), actively learning Python, JavaScript, R, and Flutter....Many more 
 - 💞️ I’m looking to collaborate on building interesting web applications and mobile Apps
 - 📫 How to reach me ...
-- 😄 Pronouns: ...
+- 😄 Pronouns: He/Him
 - ⚡ Fun fact: ...
 
 <!---
