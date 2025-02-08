@@ -117,8 +117,24 @@ plot_disulfide_bonds <- function(disulfide_pairs) {
     return(NULL)
   }
   
-  # Assign a unique y-level for each bond
-  disulfide_pairs$y_level <- seq(nrow(disulfide_pairs), 1, by = -1)
+  # Sort bonds by residueId1 to process them in order
+  disulfide_pairs <- disulfide_pairs %>% arrange(residueId1)
+  
+  # Assign y-levels dynamically with 0.5 spacing
+  y_levels <- numeric(nrow(disulfide_pairs))
+  y_levels[1] <- 1  # First bond starts at level 1
+  
+  for (i in 2:nrow(disulfide_pairs)) {
+    prev_levels <- y_levels[1:(i-1)]
+    prev_endings <- disulfide_pairs$residueId2[1:(i-1)]
+    
+    # Find non-overlapping lowest available level with 0.5 spacing
+    available_levels <- setdiff(seq(1, max(prev_levels) + 0.25, by = 0.25), prev_levels[prev_endings >= disulfide_pairs$residueId1[i]])
+    
+    y_levels[i] <- min(available_levels)
+  }
+  
+  disulfide_pairs$y_level <- y_levels
   
   p <- ggplot() +
     geom_segment(data = disulfide_pairs, 
@@ -130,13 +146,26 @@ plot_disulfide_bonds <- function(disulfide_pairs) {
     geom_point(data = disulfide_pairs, 
                aes(x = residueId2, y = y_level), 
                color = "red", size = 3) +
-    labs(title = "AlphaFold, ASA, Disulfide Bonds", x = "Residue Position", y = "Bond Index") +
+    labs(title = "Disulfide Bonds", x = "Residue Position", y = "Bond Layer") +
     theme_minimal() +
     theme(plot.title = element_text(hjust = 0.5, face = "bold", size = 14),
           axis.title.y = element_text(size = 12))
   
   return(ggplotly(p))
 }
+
+
+
+# Create plots
+p1_interactive <- plot_pLDDT(g2p_data)
+p2_interactive <- plot_ASA(g2p_data)
+p3_interactive <- plot_disulfide_bonds(disulfide_pairs)
+
+# Arrange all plots in a vertical layout
+subplot(p1_interactive, p2_interactive, p3_interactive,
+        nrows = 3, shareX = TRUE) %>%
+  layout(showlegend = TRUE)
+
 
 # Create plots
 p1_interactive <- plot_pLDDT(g2p_data)
