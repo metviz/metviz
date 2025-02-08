@@ -130,7 +130,7 @@ plot_disulfide_bonds <- function(disulfide_pairs) {
     geom_point(data = disulfide_pairs, 
                aes(x = residueId2, y = y_level), 
                color = "red", size = 3) +
-    labs(title = "Disulfide Bonds", x = "Residue Position", y = "Bond Index") +
+    labs(title = "AlphaFold, ASA, Disulfide Bonds", x = "Residue Position", y = "Bond Index") +
     theme_minimal() +
     theme(plot.title = element_text(hjust = 0.5, face = "bold", size = 14),
           axis.title.y = element_text(size = 12))
