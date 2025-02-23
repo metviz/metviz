@@ -23,6 +23,7 @@ suppressMessages(library(httr))
 suppressMessages(library(httr2))
 theme_set(theme_cowplot(font_size=12)) 
 suppressMessages(library(tidyr))
+theme_set(theme_cowplot(font_size = 12))
 
 # --- Data Extraction & Feature Processing ---
 
@@ -35,147 +36,107 @@ extract_g2p <- function(g, u) {
     # Download the file temporarily to check line count
     temp_file <- tempfile()
     download.file(url, destfile = temp_file, method = "wget", extra = "-r -p --random-wait")
-    #download.file(url, temp_file, quiet = TRUE)
-    message(paste("Temporary file saved at:", temp_file))
-    print(temp_file)
     # Count the number of lines in the file
     num_lines <- length(readLines(temp_file))
-    print(num_lines)
     # Read the file using read.table
-    g2p_data <- read.table(temp_file, sep = "	", header = TRUE, fileEncoding = "utf-8", stringsAsFactors = FALSE)
+    g2p_data <- read.table(temp_file, sep = "\t", quote = "", header = TRUE, fileEncoding = "utf-8", stringsAsFactors = FALSE)
     
     # Check if the number of rows matches the number of lines minus the header
     if (nrow(g2p_data) == (num_lines - 1)) {
-      message(paste("File is completely read.", nrow(g2p_data), "| Total lines:", num_lines -1))
+      message(paste("File is completely read.", nrow(g2p_data), "| Total lines:", num_lines - 1))
     } else {
       warning(paste("File may be incomplete! Rows read:", nrow(g2p_data), "| Total lines:", num_lines))
     }
     
     # Clean up temporary file
-    g2p_data$numlines=num_lines
+    g2p_data$numlines <- num_lines
     
     return(g2p_data)
   }
   
   g2p_data <- check_file_complete(url)
-  g2p_data$protein_length=tail(g2p_data$residueId, n=1)
+  g2p_data$protein_length <- tail(g2p_data$residueId, n = 1)
   
-  # Extract features (using backticks for columns with special characters)
+  # Define a helper function to extract features
+  extract_feature <- function(df, col_name) {
+    if (col_name %in% colnames(df)) {
+      df %>%
+        filter(!is.na(!!sym(col_name)) &!!sym(col_name)!= "") %>%
+        select(residueId, AA,!!sym(col_name))
+    } else {
+      data.frame()
+    }
+  }
+  
+  # Extract features using the helper function
   features <- list(
-    Alphafold_pLDDT = if ("AlphaFold.confidence..pLDDT." %in% colnames(g2p_data)) {
-      g2p_data[g2p_data$`AlphaFold.confidence..pLDDT.` != "", c("residueId", "AA", "AlphaFold.confidence..pLDDT.")] %>% 
-      drop_na()
-    } else data.frame(),
-    
-    Disulfide_bond = if ("Disulfide.bond..UniProt." %in% colnames(g2p_data)) {
-      g2p_data[g2p_data$`Disulfide.bond..UniProt.` != "", c("residueId", "AA", "Disulfide.bond..UniProt.")] %>% 
-      drop_na()
-    } else data.frame(),
-    
-    Compositional_bias = if ("Compositional.bias..UniProt." %in% colnames(g2p_data)) {
-      g2p_data %>%
-        filter(!is.na(`Compositional.bias..UniProt.`) & `Compositional.bias..UniProt.` != "") %>%
-        select(residueId, AA, `Compositional.bias..UniProt.`)
-    } else data.frame(),
-    
-    Domain = if ("Domain..UniProt." %in% colnames(g2p_data)) {
-      g2p_data[g2p_data$`Domain..UniProt.` != "", c("residueId", "AA", "Domain..UniProt.")] %>% 
-      drop_na()
-    } else data.frame(),
-    
-    Glycosylation = if ("Glycosylation..UniProt." %in% colnames(g2p_data)) {
-      g2p_data[g2p_data$`Glycosylation..UniProt.` != "", c("residueId", "AA", "Glycosylation..UniProt.")] %>% 
-      drop_na()
-    } else data.frame(),
-    
-    Modified_residue = if ("Modified.residue..UniProt." %in% colnames(g2p_data)) {
-      g2p_data[g2p_data$`Modified.residue..UniProt.` != "", c("residueId", "AA", "Modified.residue..UniProt.")] %>% 
-      drop_na()
-    } else data.frame(),
-    
-    Motif = if ("Motif..UniProt." %in% colnames(g2p_data)) {
-      g2p_data[g2p_data$`Motif..UniProt.` != "", c("residueId", "AA", "Motif..UniProt.")] %>% 
-      drop_na()
-    } else data.frame(),
-    
-    Region = if ("Region..UniProt." %in% colnames(g2p_data)) {
-      g2p_data[g2p_data$`Region..UniProt.` != "", c("residueId", "AA", "Region..UniProt.")] %>% 
-      drop_na()
-    } else data.frame(),
-    
-    Repeat = if ("Repeat..UniProt." %in% colnames(g2p_data)) {
-      g2p_data %>%
-        filter(!is.na(`Repeat..UniProt.`) & `Repeat..UniProt.` != "") %>%
-        select(residueId, AA, `Repeat..UniProt.`)
-    } else data.frame(),
-    
-    ASA = if ("Accessible.surface.area..Å..." %in% colnames(g2p_data)) {
-      g2p_data[g2p_data$`Accessible.surface.area..Å...` != "", c("residueId", "AA", "Accessible.surface.area..Å...")] %>% 
-      drop_na()
-    } else data.frame(),
-    
-    Hydropathy = if ("Hydropathy" %in% colnames(g2p_data)) {
-      g2p_data[g2p_data$Hydropathy != "", c("residueId", "AA", "Hydropathy")] %>% 
-      drop_na()
-    } else data.frame(),
-    
-    Acetylation = if ("Acetylation" %in% colnames(g2p_data)) {
-      g2p_data %>%
-        filter(!is.na(`Acetylation`) & `Acetylation` != "") %>%
-        select(residueId, AA, `Acetylation`)
-    } else data.frame(),
-    
-    Disease_associated_PTM = if ("Disease.associated.PTMs" %in% colnames(g2p_data)) {
-      g2p_data %>% 
-        filter(!is.na(`Disease.associated.PTMs`) & `Disease.associated.PTMs` != "") %>%
-        select (residueId, AA, "Disease.associated.PTMs")
-    } else data.frame(),
-    
-    Methylation = if ("Methylation" %in% colnames(g2p_data)) {
-      g2p_data %>% 
-        filter(!is.na(`Methylation`) & `Methylation` != "") %>%
-        select (residueId, AA, "Methylation")
-    } else data.frame(),
-    
-    O_GalNAc = if ("O.GalNAc" %in% colnames(g2p_data)) {
-      g2p_data[g2p_data$`O.GalNAc` != "", c("residueId", "AA", "O.GalNAc")] %>% 
-      drop_na()
-    } else data.frame(),
-    
-    O_GlcNAc = if ("O.GlcNAc" %in% colnames(g2p_data)) {
-      g2p_data[g2p_data$`O.GlcNAc` != "", c("residueId", "AA", "O.GlcNAc")] %>% 
-      drop_na()
-    } else data.frame(),
-    
-    Phosphorylation = if ("Phosphorylation" %in% colnames(g2p_data)) {
-      g2p_data[g2p_data$`Phosphorylation` != "", c("residueId", "AA", "Phosphorylation")] %>% 
-      drop_na()
-    } else data.frame(),
-    
-    SNP_associated_PTM = if ("SNP.associated.PTMs" %in% colnames(g2p_data)) {
-      g2p_data[g2p_data$`SNP.associated.PTMs` != "", c("residueId", "AA", "SNP.associated.PTMs")] %>% 
-      drop_na()
-    } else data.frame(),
-    
-    Regulatory_sites = if ("Regulatory.sites" %in% colnames(g2p_data)) {
-      g2p_data[g2p_data$`Regulatory.sites` != "", c("residueId", "AA", "Regulatory.sites")] %>% 
-      drop_na()
-    } else data.frame(),
-    
-    Substrate_genes = if ("Substrate.genes" %in% colnames(g2p_data)) {
-      g2p_data[g2p_data$`Substrate.genes` != "", c("residueId", "AA", "Substrate.genes")] %>% 
-      drop_na()
-    } else data.frame(),
-    
-    SUMOylation = if ("SUMOylation" %in% colnames(g2p_data)) {
-      g2p_data[g2p_data$`SUMOylation` != "", c("residueId", "AA", "SUMOylation")] %>% 
-      drop_na()
-    } else data.frame(),
-    
-    Ubiquitination = if ("Ubiquitination" %in% colnames(g2p_data)) {
-      g2p_data[g2p_data$`Ubiquitination` != "", c("residueId", "AA", "Ubiquitination")] %>% 
-      drop_na()
-    } else data.frame()
+    Alphafold_pLDDT = extract_feature(g2p_data, "AlphaFold.confidence..pLDDT."),
+    Disulfide_bond = extract_feature(g2p_data, "Disulfide.bond..UniProt."),
+    Compositional_bias = extract_feature(g2p_data, "Compositional.bias..UniProt."),
+    Domain = extract_feature(g2p_data, "Domain..UniProt."),
+    Glycosylation = extract_feature(g2p_data, "Glycosylation..UniProt."),
+    Modified_residue = extract_feature(g2p_data, "Modified.residue..UniProt."),
+    Motif = extract_feature(g2p_data, "Motif..UniProt."),
+    Region = extract_feature(g2p_data, "Region..UniProt."),
+    Repeat = extract_feature(g2p_data, "Repeat..UniProt."),
+    ASA = extract_feature(g2p_data, "Accessible.surface.area..Å..."),
+    Hydropathy = extract_feature(g2p_data, "Hydropathy"),
+    Acetylation = extract_feature(g2p_data, "Acetylation"),
+    Disease_associated_PTM = extract_feature(g2p_data, "Disease.associated.PTMs"),
+    Methylation = extract_feature(g2p_data, "Methylation"),
+    O_GalNAc = extract_feature(g2p_data, "O.GalNAc"),
+    O_GlcNAc = extract_feature(g2p_data, "O.GlcNAc"),
+    Phosphorylation = extract_feature(g2p_data, "Phosphorylation"),
+    SNP_associated_PTM = extract_feature(g2p_data, "SNP.associated.PTMs"),
+    Regulatory_sites = extract_feature(g2p_data, "Regulatory.sites"),
+    Substrate_genes = extract_feature(g2p_data, "Substrate.genes"),
+    SUMOylation = extract_feature(g2p_data, "SUMOylation"),
+    Ubiquitination = extract_feature(g2p_data, "Ubiquitination"),
+    # Additional features from the provided file
+    Amino_acid_properties = extract_feature(g2p_data, "Amino.acid.properties"),
+    Secondary_structure_PDBe_SIFTS = extract_feature(g2p_data, "Secondary.structure..PDBe.SIFTS."),
+    Secondary_structure_DSSP_3_state = extract_feature(g2p_data, "Secondary.structure..DSSP.3.state.."),
+    Secondary_structure_DSSP_9_state = extract_feature(g2p_data, "Secondary.structure..DSSP.9.state.."),
+    Phi_angle_degrees = extract_feature(g2p_data, "Phi.angle..degrees.."),
+    Psi_angle_degrees = extract_feature(g2p_data, "Psi.angle..degrees.."),
+    Active_site = extract_feature(g2p_data, "Active.site..UniProt."),
+    Binding_site = extract_feature(g2p_data, "Binding.site..UniProt."),
+    Chain = extract_feature(g2p_data, "Chain..UniProt."),
+    Coiled_coil = extract_feature(g2p_data, "Coiled.coil..UniProt."),
+    Cross_link = extract_feature(g2p_data, "Cross.link..UniProt."),
+    DNA_binding = extract_feature(g2p_data, "DNA.binding..UniProt."),
+    Initiator_methionine = extract_feature(g2p_data, "Initiator.methionine..UniProt."),
+    Intramembrane = extract_feature(g2p_data, "Intramembrane..UniProt."),
+    Lipidation = extract_feature(g2p_data, "Lipidation..UniProt."),
+    Mutagenesis = extract_feature(g2p_data, "Mutagenesis..UniProt."),
+    Non_adjacent_residues = extract_feature(g2p_data, "Non.adjacent.residues..UniProt."),
+    Non_standard_residue = extract_feature(g2p_data, "Non.standard.residue..UniProt."),
+    Non_terminal_residue = extract_feature(g2p_data, "Non.terminal.residue..UniProt."),
+    Peptide = extract_feature(g2p_data, "Peptide..UniProt."),
+    Propeptide = extract_feature(g2p_data, "Propeptide..UniProt."),
+    Sequence_conflict = extract_feature(g2p_data, "Sequence.conflict..UniProt."),
+    Sequence_uncertainty = extract_feature(g2p_data, "Sequence.uncertainty..UniProt."),
+    Signal = extract_feature(g2p_data, "Signal..UniProt."),
+    Site = extract_feature(g2p_data, "Site..UniProt."),
+    Topological_domain = extract_feature(g2p_data, "Topological.domain..UniProt."),
+    Transit_peptide = extract_feature(g2p_data, "Transit.peptide..UniProt."),
+    Transmembrane = extract_feature(g2p_data, "Transmembrane..UniProt."),
+    Zinc_finger = extract_feature(g2p_data, "Zinc.finger..UniProt."),
+    Molar_mass_g_mol = extract_feature(g2p_data, "Molar.mass..g.mol."),
+    Pocket_number_fpocket = extract_feature(g2p_data, "Pocket.number..fpocket.."),
+    Druggability_score_fpocket = extract_feature(g2p_data, "Druggability.score..fpocket.."),
+    Intra_chain_Hydrogen_bond_PDB = extract_feature(g2p_data, "Intra.chain.Hydrogen.bond..PDB."),
+    Intra_chain_Hydrogen_bond_AlphaFold2 = extract_feature(g2p_data, "Intra.chain.Hydrogen.bond..AlphaFold2."),
+    Intra_chain_Non_bonded_interaction_PDB = extract_feature(g2p_data, "Intra.chain.Non.bonded.interaction..PDB."),
+    Intra_chain_Non_bonded_interaction_AlphaFold2 = extract_feature(g2p_data, "Intra.chain.Non.bonded.interaction..AlphaFold2."),
+    Intra_chain_Disulfide_bond_PDB = extract_feature(g2p_data, "Intra.chain.Disulfide.bond..PDB."),
+    Intra_chain_Disulfide_bond_AlphaFold2 = extract_feature(g2p_data, "Intra.chain.Disulfide.bond..AlphaFold2."),
+    Intra_chain_Salt_bridge_PDB = extract_feature(g2p_data, "Intra.chain.Salt.bridge..PDB."),
+    Intra_chain_Salt_bridge_AlphaFold2 = extract_feature(g2p_data, "Intra.chain.Salt.bridge..AlphaFold2."),
+    Inter_chain_Hydrogen_bond_PDB = extract_feature(g2p_data, "Inter.chain.Hydrogen.bond..PDB."),
+    Inter_chain_Non_bonded_interaction_PDB = extract_feature(g2p_data, "Inter.chain.Non.bonded.interaction..PDB."),
+    Inter_chain_Disulfide_bond_DB = extract_feature(g2p_data, "Inter.chain.Disulfide.bond..PDB."),
+    Inter_chain_Salt_bridge_PDB = extract_feature(g2p_data, "Inter.chain.Salt.bridge..PDB.")
   )
   
   # Parse disulfide bond pairs if available
@@ -192,31 +153,11 @@ extract_g2p <- function(g, u) {
   return(list(data = g2p_data, features = features, disulfide_pairs = disulfide_pairs))
 }
 
-# Function to get protein length
-get_protein_length <- function(g2p_data) {
-  max(g2p_data$residueId)
-}
-tail(g2p_data$residueId, n=1)
-# --- Confidence Assignment ---
-confidence_colors <- c(
-  "Very low (0-50)" = "#FF6B6B",
-  "Low (50-70)" = "#FFD93D",
-  "Confident (70-90)" = "#4D96FF",
-  "Very high (90-100)" = "#6BCB77"
-)
 
-classify_confidence <- function(pLDDT) {
-  case_when(
-    pLDDT >= 90 ~ "Very high (90-100)",
-    pLDDT >= 70 ~ "Confident (70-90)",
-    pLDDT >= 50 ~ "Low (50-70)",
-    TRUE ~ "Very low (0-50)"
-  )
-}
 
 # --- Input Data ---
-gene_name <- "DDX3X" ## "PCSK9"   
-uniprot_id <- "O00571" ## "Q8NBP7" 
+gene_name <- "CACNA1A" ## "PCSK9" ## "DDX3X" ##    
+uniprot_id <- "O00555" ## "Q8NBP7" ## "O00571" ## 
 gene_description <- "Proprotein convertase subtilisin/kexin type 9"
 
 data_and_features <- extract_g2p(gene_name, uniprot_id)
@@ -226,6 +167,16 @@ data_and_features <- extract_g2p(gene_name, uniprot_id)
 g2p_data <- data_and_features$data
 features <- data_and_features$features
 disulfide_pairs <- data_and_features$disulfide_pairs
+
+
+# --- Confidence Assignment ---
+confidence_colors <- c(
+  "Very low (0-50)" = "#FF6B6B",
+  "Low (50-70)" = "#FFD93D",
+  "Confident (70-90)" = "#4D96FF",
+  "Very high (90-100)" = "#6BCB77"
+)
+
 
 # Add Confidence_Level factor to g2p_data
 g2p_data$Confidence_Level <- factor(
@@ -238,10 +189,234 @@ protein_length <- get_protein_length(g2p_data)
 print(protein_length)
 
 
+## --- Plotting Functions ---(adding one at a time)
 
 
 
-# --- Plotting Functions ---
+
+## 📌 Function to plot Amino_acid_properties
+plot_amino_acid_properties <- function(features, protein_length) {
+  if (nrow(features$Amino_acid_properties) == 0) return(NULL)
+  
+  # Convert Amino.acid.properties to factor to assign colors
+  features$Amino_acid_properties$Amino.acid.properties <- as.factor(features$Amino_acid_properties$Amino.acid.properties)
+  
+  # Check the unique levels present in the dataset
+  current_levels <- unique(features$Amino_acid_properties$Amino.acid.properties)
+  print(current_levels)
+  
+  # Amino Acid Residue Properties
+  amino_acid_residue_colors <- c(
+    "Aliphatic" = "#FFD93D",
+    "Aromatic" = "#FF6B6B",
+    "Polar/Neutral" = "#6BCB77",
+    "Positively-charged" = "#4D96FF",
+    "Negatively-charged" = "#C70039",
+    "Special, a very reactive sulfhdryl group" = "#696969",
+    "Special, No backbone hydrogen" = "#696969",
+    "default" = "#808080"
+  )
+  
+  # Handle any missing or unexpected levels by assigning them a default color
+  missing_levels <- setdiff(current_levels, names(amino_acid_residue_colors))
+  if (length(missing_levels) > 0) {
+    amino_acid_residue_colors <- c(amino_acid_residue_colors, setNames(rep("white", length(missing_levels)), missing_levels))
+  }
+  
+  p <- ggplot(features$Amino_acid_properties, aes(x = residueId, y = 1, fill = `Amino.acid.properties`,
+                                                  text = paste("Residue:", residueId,
+                                                               "<br>AA:", AA,
+                                                               "<br>Amino_Acid_Property:", `Amino.acid.properties`))) +
+    geom_bar(stat = "identity", width = 1) +
+    labs(title = "Amino Acid Properties", y = NULL) +  # Add title back
+    theme_minimal() +
+    theme(
+      plot.title = element_text(hjust = 0.5, face = "bold", size = 14),
+      axis.title.y = element_blank(),
+      axis.text.y = element_blank(),
+      axis.ticks.y = element_blank(),
+      panel.background = element_blank(),
+      panel.grid.major = element_blank(),
+      panel.grid.minor = element_blank(),
+      plot.margin = margin(t = 0, r = 0, b = 0, l = 0, unit = "cm"),
+      legend.position = "none"
+    ) +
+    scale_x_continuous(expand = expansion(mult = 0.01), limits = c(1, protein_length)) +
+    scale_fill_manual(values = amino_acid_residue_colors)
+  
+  return(ggplotly(p, tooltip = "text"))
+}
+
+## 📌 Function to plot Secondary_structure_DSSP_9_state
+plot_secondary_structure_DSSP_9_state <- function(features, protein_length) {
+  if (nrow(features$Secondary_structure_DSSP_9_state) == 0) return(NULL)
+  
+  # Check the unique levels present in the dataset
+  current_levels <- unique(features$Secondary_structure_DSSP_9_state$Secondary.structure..DSSP.9.state..)
+  print(current_levels)  # Debugging: View the unique levels
+  
+  # Convert the column to a factor to ensure correct mapping
+  features$Secondary_structure_DSSP_9_state$Secondary.structure..DSSP.9.state.. <- 
+    as.factor(features$Secondary_structure_DSSP_9_state$Secondary.structure..DSSP.9.state..)
+  
+  # Define colors for each DSSP 9-state type
+  ss_colors <- c(
+    "H (α-helix)"          = "magenta",
+    "G (3₁₀-helix)"        = "magenta",
+    "I (π-helix)"          = "magenta",
+    "E (parallel sheets)"  = "yellow",
+    "B (beta bridge)"      = "yellow",
+    "T (turn)"             = "paleturquoise",  
+    "S (bend)"             = "paleturquoise",
+    "C (loop/coil)"        = "white",
+    "P (polyproline helix)"= "palegreen"
+  )
+  
+  # Handle any missing or unexpected levels by assigning them a default color
+  missing_levels <- setdiff(current_levels, names(ss_colors))
+  if (length(missing_levels) > 0) {
+    ss_colors <- c(ss_colors, setNames(rep("white", length(missing_levels)), missing_levels))
+  }
+  
+  # Create the plot
+  p <- ggplot(features$Secondary_structure_DSSP_9_state, 
+              aes(x = residueId, 
+                  y = 1, 
+                  fill = Secondary.structure..DSSP.9.state..,
+                  text = paste("Residue:", residueId,
+                               "<br>AA:", AA,
+                               "<br>Secondary Structure:", Secondary.structure..DSSP.9.state..))) +
+    geom_bar(stat = "identity", width = 1) +
+    #labs(title = "Secondary Structure (DSSP 9-state)", y = NULL) +
+    theme_minimal() +
+    theme(
+      plot.title = element_text(hjust = 0.5, face = "bold", size = 14),
+      axis.title.y = element_blank(),
+      axis.text.y = element_blank(),
+      axis.ticks.y = element_blank(),
+      panel.background = element_blank(),
+      panel.grid.major = element_blank(),
+      panel.grid.minor = element_blank(),
+      plot.margin = margin(t = 0, r = 0, b = 0, l = 0, unit = "cm"),
+      legend.position = "none"
+    ) +
+    scale_x_continuous(expand = expansion(mult = 0.01), limits = c(1, protein_length)) +
+    scale_fill_manual(values = ss_colors)  # Apply the custom color mapping
+  
+  return(ggplotly(p, tooltip = "text"))
+}
+
+
+
+## 📌 Function to plot Secondary_structure_PDBe_SIFTS
+plot_secondary_structure_PDBe_SIFTS <- function(features, protein_length) {
+  if (nrow(features$Secondary_structure_PDBe_SIFTS) == 0) return(NULL)
+  
+  # Convert only the relevant column to factor
+  features$Secondary_structure_PDBe_SIFTS$Secondary.structure..PDBe.SIFTS. <- 
+    as.factor(features$Secondary_structure_PDBe_SIFTS$Secondary.structure..PDBe.SIFTS.)
+  
+  # Ensure all possible levels are present, even if not in the data
+  levels(features$Secondary_structure_PDBe_SIFTS$Secondary.structure..PDBe.SIFTS.) <- 
+    c("Helix", "Beta strand", "Turn", "Other")
+
+    # Define custom colors for secondary structures
+  ## "C (loop/coil)" "H (helix)"     "B (strand)" 
+  ss_colors <- c(
+    "Helix" = "magenta",
+    "Beta strand" = "yellow",
+    "Turn" = "paleturquoise"  # Pale blue
+   )
+  # Dynamically handle any other levels present in the data
+  # If any unknown levels are present, we will color them as "Other"
+  levels_present <- levels(features$Secondary_structure_PDBe_SIFTS$Secondary.structure..PDBe.SIFTS.)
+  missing_levels <- setdiff(levels_present, names(ss_colors))
+  
+  # Add missing levels to the color mapping as "Other"
+  if (length(missing_levels) > 0) {
+    ss_colors <- c(ss_colors, setNames(rep("white", length(missing_levels)), missing_levels))
+  }
+  
+  p <- ggplot(features$Secondary_structure_PDBe_SIFTS, 
+              aes(x = residueId, 
+                  y = 1, 
+                  fill = Secondary.structure..PDBe.SIFTS.,
+                  text = paste("Residue:", residueId,
+                               "<br>AA:", AA,
+                               "<br>Secondary Structure PDBe SIFTS:", Secondary.structure..PDBe.SIFTS.))) +
+    geom_bar(stat = "identity", width = 1) +
+   # labs(title = "Secondary Structure (PDBe SIFTS)", y = NULL) +
+    theme_minimal() +
+    theme(
+      plot.title = element_text(hjust = 0.5, face = "bold", size = 14),
+      axis.title.y = element_blank(),
+      axis.text.y = element_blank(),
+      axis.ticks.y = element_blank(),
+      panel.background = element_blank(),
+      panel.grid.major = element_blank(),
+      panel.grid.minor = element_blank(),
+      plot.margin = margin(t = 0, r = 0, b = 0, l = 0, unit = "cm"),
+      legend.position = "none"
+    ) +
+    scale_x_continuous(expand = expansion(mult = 0.01), limits = c(1, protein_length)) +
+    scale_fill_manual(values = ss_colors) 
+  
+  return(ggplotly(p, tooltip = "text"))
+}
+
+
+## 📌 Function to plot Secondary_structure_DSSP_3_state
+plot_secondary_structure_DSSP_3_state <- function(features, protein_length) {
+  if (nrow(features$Secondary_structure_DSSP_3_state) == 0) return(NULL)
+  
+  # Check the unique levels present in the dataset
+  current_levels <- unique(features$Secondary_structure_DSSP_3_state$Secondary.structure..DSSP.3.state..)
+  print(current_levels)  # Debugging: View the unique levels
+  
+  # Convert the column to a factor to ensure correct mapping
+  features$Secondary_structure_DSSP_3_state$Secondary.structure..DSSP.3.state.. <- 
+    as.factor(features$Secondary_structure_DSSP_3_state$Secondary.structure..DSSP.3.state..)
+  
+  # Define colors for each DSSP 3-state type
+  ss_colors1 <- c(
+    "H (helix)"   = "magenta",
+    "B (strand)"  = "yellow",
+    "C (loop/coil)" = "paleturquoise"
+  )
+  
+  # Handle any missing or unexpected levels by assigning them a default color
+  missing_levels <- setdiff(current_levels, names(ss_colors1))
+  if (length(missing_levels) > 0) {
+    ss_colors1 <- c(ss_colors1, setNames(rep("white", length(missing_levels)), missing_levels))
+  }
+  
+  # Create the plot
+  p <- ggplot(features$Secondary_structure_DSSP_3_state, 
+              aes(x = residueId, 
+                  y = 1, 
+                  fill = Secondary.structure..DSSP.3.state..,
+                  text = paste("Residue:", residueId,
+                               "<br>AA:", AA,
+                               "<br>Secondary Structure DSSP3:", Secondary.structure..DSSP.3.state..))) +
+    geom_bar(stat = "identity", width = 1) +
+    #labs(title = "Secondary Structure (DSSP 3-state)", y = NULL) +
+    theme_minimal() +
+    theme(
+      plot.title = element_text(hjust = 0.5, face = "bold", size = 14),
+      axis.title.y = element_blank(),
+      axis.text.y = element_blank(),
+      axis.ticks.y = element_blank(),
+      panel.background = element_blank(),
+      panel.grid.major = element_blank(),
+      panel.grid.minor = element_blank(),
+      plot.margin = margin(t = 0, r = 0, b = 0, l = 0, unit = "cm"),
+      legend.position = "none"
+    ) +
+    scale_x_continuous(expand = expansion(mult = 0.01), limits = c(1, protein_length)) +
+    scale_fill_manual(values = ss_colors1)  # Apply the custom color mapping
+  
+  return(ggplotly(p, tooltip = "text"))
+}
 
 ## 📌 Function to plot AlphaFold pLDDT
 plot_pLDDT <- function(features, protein_length) {
@@ -255,9 +430,9 @@ plot_pLDDT <- function(features, protein_length) {
                                          "<br>Confidence:", Confidence_Level))) +
     geom_bar(stat = "identity", width = 1) +
     scale_fill_manual(values = confidence_colors) +
-    labs(title = "Protein Features View",
-         x = "Residue Position",
-         y = "AlphaFold pLDDT") +  # Remove Y-axis label
+    # labs(title = "Protein Features View",
+    #      x = "Residue Position",
+    #      y = "AlphaFold pLDDT") +  # Remove Y-axis label
     theme_minimal() +
     theme(
       plot.title = element_text(hjust = 0.5, face = "bold", size = 14),
@@ -267,15 +442,15 @@ plot_pLDDT <- function(features, protein_length) {
       panel.background = element_blank(),  # Blank background
       panel.grid.major = element_blank(),  # No grid lines
       panel.grid.minor = element_blank(),  # No grid lines
-      plot.margin = margin(t = 0, r = 0, b = 0, l = 0, unit = "cm")  # Reduce margins
+      plot.margin = margin(t = 0, r = 0, b = 0, l = 0, unit = "cm"), # Reduce margins
+      legend.position="none"
     ) +
     scale_y_continuous(limits = c(0, 100), breaks = seq(0, 100, 25)) +
     scale_x_continuous(expand = expansion(mult = 0.01), limits = c(1, protein_length))
     #scale_x_continuous(expand = expansion(mult = 0.01))
   
   return(ggplotly(p, tooltip = "text") %>%
-           layout(hoverlabel = list(bgcolor = "white"),
-                  legend = list(orientation = "h", y = -0.2)))
+           layout(hoverlabel = list(bgcolor = "white")))
 }
 
 ## 📌 Function to plot Accessible Surface Area (ASA)
@@ -286,10 +461,10 @@ plot_ASA <- function(features, protein_length) {
                                 text = paste("Residue:", residueId, 
                                              "<br>AA:", AA,
                                              "<br>ASA:", round(Accessible.surface.area..Å..., 1)))) +
-    geom_bar(stat = "identity", fill = "#2ca02c", width = 1) +
-    labs(title = "",
-         x = "",
-         y = "ASA") +  # Remove Y-axis label
+    geom_bar(stat = "identity", fill = "green", width = 1, color = "darkgreen") +  # Add darkgreen outline
+    # labs(title = "",
+    #      x = "",
+    #      y = "ASA") +  # Remove Y-axis label
     theme_minimal() +
     theme(
       plot.title = element_text(hjust = 0.5, face = "bold", size = 14),
@@ -299,13 +474,13 @@ plot_ASA <- function(features, protein_length) {
       panel.background = element_blank(),  # Blank background
       panel.grid.major = element_blank(),  # No grid lines
       panel.grid.minor = element_blank(),  # No grid lines
-      plot.margin = margin(t = 0, r = 0, b = 0, l = 0, unit = "cm")  # Reduce margins
+      plot.margin = margin(t = 0, r = 0, b = 0, l = 0, unit = "cm"),  # Reduce margins
+      legend.position="none"
     ) +
     scale_x_continuous(expand = expansion(mult = 0.01), limits = c(1, protein_length))
   
   return(ggplotly(p, tooltip = "text"))
 }
-
 ## 📌 Function to plot Disulfide Bonds
 plot_disulfide_bonds <- function(disulfide_pairs, protein_length) {
   if (nrow(disulfide_pairs) == 0) return(NULL)
@@ -330,7 +505,8 @@ plot_disulfide_bonds <- function(disulfide_pairs, protein_length) {
       panel.background = element_blank(),  # Blank background
       panel.grid.major = element_blank(),  # No grid lines
       panel.grid.minor = element_blank(),  # No grid lines
-      plot.margin = margin(t = 0, r = 0, b = 0, l = 0, unit = "cm")  # Reduce margins
+      plot.margin = margin(t = 0, r = 0, b = 0, l = 0, unit = "cm"),  # Reduce margins
+      legend.position="none"
     ) +
     scale_x_continuous(expand = expansion(mult = 0.01), limits = c(1, protein_length))
   
@@ -344,11 +520,11 @@ plot_compositional_bias <- function(features, protein_length) {
   p <- ggplot(features$Compositional_bias, aes(x = residueId, y = 1,
                                                text = paste("Residue:", residueId,
                                                             "<br>AA:", AA,
-                                                            "<br>Feature:", `Compositional.bias..UniProt.`))) +
-    geom_point(color = "red", shape=1) +
-    labs(title = "",
-         x = "",
-         y = "Compositional Bias") +  # Remove Y-axis label
+                                                            "<br>Compositional_bias:", `Compositional.bias..UniProt.`))) +
+    geom_point(color = "red", shape=18) +
+    # labs(title = "",
+    #      x = "",
+    #      y = "Compositional Bias") +  # Remove Y-axis label
     theme_minimal() +
     theme(
       plot.title = element_text(hjust = 0.5, face = "bold", size = 14),
@@ -358,7 +534,8 @@ plot_compositional_bias <- function(features, protein_length) {
       panel.background = element_blank(),  # Blank background
       panel.grid.major = element_blank(),  # No grid lines
       panel.grid.minor = element_blank(),  # No grid lines
-      plot.margin = margin(t = 0, r = 0, b = 0, l = 0, unit = "cm")  # Reduce margins
+      plot.margin = margin(t = 0, r = 0, b = 0, l = 0, unit = "cm"),  # Reduce margins
+      legend.position="none"
     ) +
     scale_x_continuous(expand = expansion(mult = 0.01), limits = c(1, protein_length))
   
@@ -374,9 +551,9 @@ plot_domains <- function(features, protein_length) {
                                                 "<br>AA:", AA,
                                                 "<br>Domain:", `Domain..UniProt.`))) +
     geom_point(color = "blue", shape=15) +
-    labs(title = "",
-         x = "",
-         y = "Domains") +  # Remove Y-axis label
+    # labs(title = "",
+    #      x = "",
+    #      y = "Domains") +  # Remove Y-axis label
     theme_minimal() +
     theme(
       plot.title = element_text(hjust = 0.5, face = "bold", size = 14),
@@ -386,7 +563,8 @@ plot_domains <- function(features, protein_length) {
       panel.background = element_blank(),  # Blank background
       panel.grid.major = element_blank(),  # No grid lines
       panel.grid.minor = element_blank(),  # No grid lines
-      plot.margin = margin(t = 0, r = 0, b = 0, l = 0, unit = "cm")  # Reduce margins
+      plot.margin = margin(t = 0, r = 0, b = 0, l = 0, unit = "cm"),  # Reduce margins
+      legend.position="none"
     ) +
     scale_x_continuous(expand = expansion(mult = 0.01), limits = c(1, protein_length))
   
@@ -403,9 +581,9 @@ plot_regions <- function(features, protein_length) {
                                                 "<br>AA:", AA,
                                                 "<br>Region:", `Region..UniProt.`))) +
     geom_point(color = "gray", shape=22) +
-    labs(title = "",
-         x = "",
-         y = "Regions") +  # Remove Y-axis label
+    # labs(title = "",
+    #      x = "",
+    #      y = "Regions") +  # Remove Y-axis label
     theme_minimal() +
     theme(
       plot.title = element_text(hjust = 0.5, face = "bold", size = 14),
@@ -415,7 +593,8 @@ plot_regions <- function(features, protein_length) {
       panel.background = element_blank(),  # Blank background
       panel.grid.major = element_blank(),  # No grid lines
       panel.grid.minor = element_blank(),  # No grid lines
-      plot.margin = margin(t = 0, r = 0, b = 0, l = 0, unit = "cm")  # Reduce margins
+      plot.margin = margin(t = 0, r = 0, b = 0, l = 0, unit = "cm"),  # Reduce margins
+      legend.position="none"
     ) +
     scale_x_continuous(expand = expansion(mult = 0.01), limits = c(1, protein_length))
   
@@ -431,9 +610,9 @@ plot_repeats <- function(features, protein_length) {
                                                 "<br>AA:", AA,
                                                 "<br>Repeat:", `Repeat..UniProt.`))) +
     geom_point(color = "pink", shape=15) +
-    labs(title = "",
-         x = "",
-         y = "Repeats") +  # Remove Y-axis label
+    # labs(title = "",
+    #      x = "",
+    #      y = "Repeats") +  # Remove Y-axis label
     theme_minimal() +
     theme(
       plot.title = element_text(hjust = 0.5, face = "bold", size = 14),
@@ -443,7 +622,8 @@ plot_repeats <- function(features, protein_length) {
       panel.background = element_blank(),  # Blank background
       panel.grid.major = element_blank(),  # No grid lines
       panel.grid.minor = element_blank(),  # No grid lines
-      plot.margin = margin(t = 0, r = 0, b = 0, l = 0, unit = "cm")  # Reduce margins
+      plot.margin = margin(t = 0, r = 0, b = 0, l = 0, unit = "cm"),  # Reduce margins
+      legend.position="none"
     ) +
     scale_x_continuous(expand = expansion(mult = 0.01), limits = c(1, protein_length))
   
@@ -464,9 +644,9 @@ plot_hydropathy <- function(features, protein_length) {
                                                     "<br>Hydropathy:", Hydropathy))) +
     geom_bar(stat = "identity", width = 1) +
     scale_fill_identity(guide = "none") +  # Use the predefined 'color' column for fill
-    labs(title = "",
-         x = "",
-         y = "Hydropathy") +  # Remove Y-axis label
+    # labs(title = "",
+    #      x = "",
+    #      y = "Hydropathy") +  # Remove Y-axis label
     theme_minimal() +
     theme(
       plot.title = element_text(hjust = 0.5, face = "bold", size = 14),
@@ -476,7 +656,8 @@ plot_hydropathy <- function(features, protein_length) {
       panel.background = element_blank(),  # Blank background
       panel.grid.major = element_blank(),  # No grid lines
       panel.grid.minor = element_blank(),  # No grid lines
-      plot.margin = margin(t = 0, r = 0, b = 0, l = 0, unit = "cm")  # Reduce margins
+      plot.margin = margin(t = 0, r = 0, b = 0, l = 0, unit = "cm"),  # Reduce margins
+      legend.position="none"
     ) +
     scale_x_continuous(expand = expansion(mult = 0.01), limits = c(1, protein_length))
   
@@ -492,9 +673,9 @@ plot_acetylation <- function(features, protein_length) {
                                                      "<br>AA:", AA,
                                                      "<br>Acetylation:", `Acetylation`))) +
     geom_point(color = "orange", shape=21,fill="pink") +
-    labs(title = "",
-         x = "",
-         y = "Acetylation") +  # Remove Y-axis label
+    # labs(title = "",
+    #      x = "",
+    #      y = "Acetylation") +  # Remove Y-axis label
     theme_minimal() +
     theme(
       plot.title = element_text(hjust = 0.5, face = "bold", size = 14),
@@ -504,7 +685,8 @@ plot_acetylation <- function(features, protein_length) {
       panel.background = element_blank(),  # Blank background
       panel.grid.major = element_blank(),  # No grid lines
       panel.grid.minor = element_blank(),  # No grid lines
-      plot.margin = margin(t = 0, r = 0, b = 0, l = 0, unit = "cm")  # Reduce margins
+      plot.margin = margin(t = 0, r = 0, b = 0, l = 0, unit = "cm"),  # Reduce margins
+      legend.position="none"
     ) +
     scale_x_continuous(expand = expansion(mult = 0.01), limits = c(1, protein_length))
   
@@ -532,7 +714,8 @@ plot_disease_associated_PTM <- function(features, protein_length) {
       panel.background = element_blank(),  # Blank background
       panel.grid.major = element_blank(),  # No grid lines
       panel.grid.minor = element_blank(),  # No grid lines
-      plot.margin = margin(t = 0, r = 0, b = 0, l = 0, unit = "cm")  # Reduce margins
+      plot.margin = margin(t = 0, r = 0, b = 0, l = 0, unit = "cm"),  # Reduce margins
+      legend.position="none"
     ) +
     scale_x_continuous(expand = expansion(mult = 0.01), limits = c(1, protein_length))
   
@@ -560,7 +743,8 @@ plot_methylation <- function(features, protein_length) {
       panel.background = element_blank(),  # Blank background
       panel.grid.major = element_blank(),  # No grid lines
       panel.grid.minor = element_blank(),  # No grid lines
-      plot.margin = margin(t = 0, r = 0, b = 0, l = 0, unit = "cm")  # Reduce margins
+      plot.margin = margin(t = 0, r = 0, b = 0, l = 0, unit = "cm"),  # Reduce margins
+      legend.position="none"
     ) +
     scale_x_continuous(expand = expansion(mult = 0.01), limits = c(1, protein_length))
   
@@ -588,7 +772,8 @@ plot_O_GalNAc <- function(features, protein_length) {
       panel.background = element_blank(),  # Blank background
       panel.grid.major = element_blank(),  # No grid lines
       panel.grid.minor = element_blank(),  # No grid lines
-      plot.margin = margin(t = 0, r = 0, b = 0, l = 0, unit = "cm")  # Reduce margins
+      plot.margin = margin(t = 0, r = 0, b = 0, l = 0, unit = "cm"),  # Reduce margins
+      legend.position="none"
     ) +
     scale_x_continuous(expand = expansion(mult = 0.01), limits = c(1, protein_length))
   
@@ -616,7 +801,8 @@ plot_O_GlcNAc <- function(features, protein_length) {
       panel.background = element_blank(),  # Blank background
       panel.grid.major = element_blank(),  # No grid lines
       panel.grid.minor = element_blank(),  # No grid lines
-      plot.margin = margin(t = 0, r = 0, b = 0, l = 0, unit = "cm")  # Reduce margins
+      plot.margin = margin(t = 0, r = 0, b = 0, l = 0, unit = "cm"),  # Reduce margins
+      legend.position="none"
     ) +
     scale_x_continuous(expand = expansion(mult = 0.01), limits = c(1, protein_length))
   
@@ -645,7 +831,8 @@ plot_phosphorylation <- function(features, protein_length) {
       panel.background = element_blank(),
       panel.grid.major = element_blank(),
       panel.grid.minor = element_blank(),
-      plot.margin = margin(t = 0, r = 0, b = 0, l = 0, unit = "cm")
+      plot.margin = margin(t = 0, r = 0, b = 0, l = 0, unit = "cm"),
+      legend.position="none"
     ) +
     scale_x_continuous(expand = expansion(mult = 0.01), limits = c(1, protein_length))
   
@@ -674,7 +861,8 @@ plot_SNP_associated_PTM <- function(features, protein_length) {
       panel.background = element_blank(),  # Blank background
       panel.grid.major = element_blank(),  # No grid lines
       panel.grid.minor = element_blank(),  # No grid lines
-      plot.margin = margin(t = 0, r = 0, b = 0, l = 0, unit = "cm")  # Reduce margins
+      plot.margin = margin(t = 0, r = 0, b = 0, l = 0, unit = "cm"),  # Reduce margins
+      legend.position="none"
     ) +
     scale_x_continuous(expand = expansion(mult = 0.01), limits = c(1, protein_length))
   
@@ -702,7 +890,8 @@ plot_Regulatory_sites <- function(features, protein_length) {
       panel.background = element_blank(),  # Blank background
       panel.grid.major = element_blank(),  # No grid lines
       panel.grid.minor = element_blank(),  # No grid lines
-      plot.margin = margin(t = 0, r = 0, b = 0, l = 0, unit = "cm")  # Reduce margins
+      plot.margin = margin(t = 0, r = 0, b = 0, l = 0, unit = "cm"),  # Reduce margins
+      legend.position="none"
     ) +
     scale_x_continuous(expand = expansion(mult = 0.01), limits = c(1, protein_length))
   
@@ -731,7 +920,8 @@ plot_substrate_genes <- function(features, protein_length) {
       panel.background = element_blank(),
       panel.grid.major = element_blank(),
       panel.grid.minor = element_blank(),
-      plot.margin = margin(t = 0, r = 0, b = 0, l = 0, unit = "cm")
+      plot.margin = margin(t = 0, r = 0, b = 0, l = 0, unit = "cm"),
+      legend.position="none"
     ) +
     scale_x_continuous(expand = expansion(mult = 0.01), limits = c(1, protein_length))
   
@@ -760,7 +950,8 @@ plot_sumoylation <- function(features, protein_length) {
       panel.background = element_blank(),
       panel.grid.major = element_blank(),
       panel.grid.minor = element_blank(),
-      plot.margin = margin(t = 0, r = 0, b = 0, l = 0, unit = "cm")
+      plot.margin = margin(t = 0, r = 0, b = 0, l = 0, unit = "cm"),
+      legend.position="none"
     ) +
     scale_x_continuous(expand = expansion(mult = 0.01), limits = c(1, protein_length))
   
@@ -787,14 +978,13 @@ plot_ubiquitination <- function(features, protein_length) {
       panel.background = element_blank(),
       panel.grid.major = element_blank(),
       panel.grid.minor = element_blank(),
-      plot.margin = margin(t = 0, r = 0, b = 0, l = 0, unit = "cm")
+      plot.margin = margin(t = 0, r = 0, b = 0, l = 0, unit = "cm"),
+      legend.position="none"
     ) +
     scale_x_continuous(expand = expansion(mult = 0.01), limits = c(1, protein_length))
   
   return(ggplotly(p, tooltip = "text"))
 }
-
-
 
 ## 📌 Function to plot Glycosylation, Modified Residues, Motifs Combined Plot
 plot_glycosylation_modified_motifs <- function(features, protein_length) {
@@ -849,7 +1039,8 @@ plot_glycosylation_modified_motifs <- function(features, protein_length) {
       panel.background = element_blank(),  # Blank background
       panel.grid.major = element_blank(),  # No grid lines
       panel.grid.minor = element_blank(),  # No grid lines
-      plot.margin = margin(t = 0, r = 0, b = 0, l = 0, unit = "cm")  # Reduce margins
+      plot.margin = margin(t = 0, r = 0, b = 0, l = 0, unit = "cm"),  # Reduce margins
+      legend.position="none"
     ) +
     scale_x_continuous(expand = expansion(mult = 0.01), limits = c(1, protein_length))
   
@@ -858,6 +1049,7 @@ plot_glycosylation_modified_motifs <- function(features, protein_length) {
 
 # --- Create Plots Dynamically ---
 plots <- list()
+# Execute the function if data exists
 if (nrow(g2p_data) > 0) {
   plots$p1_interactive <- plot_pLDDT(features, protein_length)
 }
@@ -918,6 +1110,19 @@ if (nrow(features$SUMOylation) > 0) {
  if (nrow(features$Ubiquitination) > 0) {
    plots$p20_interactive <- plot_ubiquitination(features, protein_length)
  }
+if (nrow(features$Amino_acid_properties) > 0) {
+  plots$p20_interactive <- plot_amino_acid_properties(features, protein_length)
+}
+if (nrow(features$Secondary_structure_PDBe_SIFTS) > 0) {
+  plots$p_secondary_structure_pdbe_sifts <- plot_secondary_structure_PDBe_SIFTS(features, protein_length)
+}
+if (nrow(features$Secondary_structure_DSSP_3_state) > 0) {
+  plots$p_secondary_structure_dssp_3_state <- plot_secondary_structure_DSSP_3_state(features, protein_length)
+}
+
+if (nrow(features$Secondary_structure_DSSP_9_state) > 0) {
+  plots$p_secondary_structure_dssp_9_state <- plot_secondary_structure_DSSP_9_state(features, protein_length)
+}
 
 
 # Remove NULL plots from the list
@@ -932,29 +1137,20 @@ if (length(plots) == 0) {
 total_height <- sum(c(1, rep(0.6, length(plots) - 1)))
 normalized_heights <- c(1, rep(0.6, length(plots) - 1)) / total_height
 
-# Arrange all plots in a vertical layout with custom heights
+#Arrange all plots in a vertical layout with custom heights
 subplot(plots, nrows = length(plots), shareX = TRUE, heights = normalized_heights) %>%
-  layout(showlegend = TRUE, title = list(
+  layout(title = list(
       text = "Protein Feature Visualization in R",
-      x = 0.5, 
+      x = 0.5,
       xanchor = "center",
       y = 1,
       yanchor = "top",
       font = list(size = 20)
     ),
-    xaxis = list(title = "Amino Acid Position")
-    ,
-    annotations = list(
-      list(
-        x = 0.5,
-        y = -0.15,
-        xref = "paper",
-        yref = "paper",
-        text = paste(gene_name, "-", uniprot_id, " (", protein_length, " aa)", sep = ""),
-        showarrow = FALSE,
-        xanchor = "center",
-        yanchor = "top"
-      )
+    xaxis = list(title =  paste("Amino Acid Position\n", gene_name, "-", uniprot_id, " (", protein_length, " aa)", sep = "") ),
+    theme(legend.position = "none") 
     )
-    
-    )
+
+
+# features$Secondary_structure_DSSP_3_state
+# levels_present <- unique(features$Secondary_structure_PDBe_SIFTS$Secondary.structure..PDBe.SIFTS.)
