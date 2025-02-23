@@ -23,7 +23,7 @@ suppressMessages(library(httr))
 suppressMessages(library(httr2))
 theme_set(theme_cowplot(font_size=12)) 
 suppressMessages(library(tidyr))
-theme_set(theme_cowplot(font_size = 12))
+
 
 # --- Data Extraction & Feature Processing ---
 
