@@ -5,8 +5,11 @@
 - 📫 How to reach me ...
 - 😄 Pronouns: He/Him
 - ⚡ Fun fact: ...
+- 
+Learning Protein visualization
 
 ![AlphaMissense_Pathogenicity_Heatmap](https://github.com/metviz/metviz/blob/main/AlphaMissense_Pathogenicity_Heatmap.png)
+
 ![g2p PCSK9_Q8NBP7 protein_features plot](https://github.com/metviz/metviz/blob/main/g2p.PCSK9_Q8NBP7.protein_features.plot.png)
 
 ![Alpha Fold plotting](https://github.com/metviz/metviz/blob/main/AlphaFold.AF.BSB.G2P.png)
