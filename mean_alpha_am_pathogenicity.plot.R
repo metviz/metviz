@@ -52,7 +52,7 @@ gg_mean <- ggplot(afaasub_mean, aes(
     x = "Residue Position", 
     y = "Mean Pathogenicity", 
     fill = "Pathogenicity", 
-    title = "Mean Pathogenicity Heatmap"
+    title = "Mean AF Missense Pathogenicity Heatmap"
   ) +
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 90, hjust = 1), axis.ticks.x = element_blank())
