@@ -6,7 +6,7 @@
 - 😄 Pronouns: He/Him
 - ⚡ Fun fact: ...
 - 
-Learning Protein visualization
+Learning Protein visualization: Extracting Uniprot and EBI protein data using APIs and plotting using R GGplot 
 
 ![AlphaMissense_Pathogenicity_Heatmap](https://github.com/metviz/metviz/blob/main/AlphaMissense_Pathogenicity_Heatmap.png)
 
