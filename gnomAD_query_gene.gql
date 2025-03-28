@@ -1,0 +1,67 @@
+query VariantsInGene {
+  gene(gene_symbol: "{{GeneSymbol}}", reference_genome: GRCh38) {
+    variants(dataset: gnomad_r4) {
+      variant_id
+      pos
+      rsids
+      transcript_id
+      transcript_version
+      hgvs
+      hgvsc
+      hgvsp
+      consequence
+      flags
+      exome {
+        ac
+        ac_hemi
+        ac_hom
+        an
+        af
+        populations {
+          id
+          ac
+          an
+          ac_hemi
+          ac_hom
+        }
+        filters
+        flags
+      }
+      genome {
+        ac
+        ac_hemi
+        ac_hom
+        an
+        af
+        populations {
+          id
+          ac
+          an
+          ac_hemi
+          ac_hom
+        }
+        filters
+        flags
+      }
+      joint {
+        ac
+        hemizygote_count
+        homozygote_count
+        an
+        populations {
+          id
+          ac
+          an
+          homozygote_count
+          hemizygote_count
+        }
+        filters
+      }
+      in_silico_predictors {
+        id
+        value
+        flags
+      }
+    }
+  }
+}
