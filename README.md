@@ -6,7 +6,7 @@
 - 😄 Pronouns: He/Him
 - ⚡ Fun fact: I volunteer at brown-bag ministry, Practice Taekwando, Black-belt 2nd Dan holder, Learn Carnatic music (Karnāṭaka saṅgītam) and Bhangra (Punjabi folk) dance: Perform at local events in Raleigh area.
 - 
-Learning Protein visualization: Extracting Uniprot, Gnomad, EBI data using APIs and plotting using R GGplot 
+Learning Protein visualization: Extracting Uniprot, GnomAD, EBI data using APIs and plotting using R GGplot 
 
 ![AlphaMissense_Pathogenicity_Heatmap](https://github.com/metviz/metviz/blob/main/AlphaMissense_Pathogenicity_Heatmap.png)
 
