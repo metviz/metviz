@@ -1,12 +1,12 @@
 - 👋 Hi, I’m Agasthya Metpally (@metviz)
 - 👀 I’m interested in coding and building apps to make a difference 
-- 🌱 I’m currently a Freshman at Raleigh Charter High School (RCHS), actively learning Python, JavaScript, R, and Flutter....Many more 
-- 💞️ I’m looking to collaborate on building interesting web applications and mobile Apps
-- 📫 How to reach me ...
+- 🌱 I’m a Freshman at Raleigh Charter High School (RCHS), actively learning Python, JavaScript, R, and Flutter....Many more 
+- 💞️ I’m looking to collaborate on building interesting web applications, mobile Apps, and scientific analysis
+- 📫 How to reach me: ametpally :at: raleighcharterhs :dot: org 
 - 😄 Pronouns: He/Him
-- ⚡ Fun fact: ...
+- ⚡ Fun fact: I volunteer at brown-bag ministry, Practice Taekwando, Black-belt 2nd Dan holder, Learn Carnatic music (Karnāṭaka saṅgītam) and Bhangra (Punjabi folk) dance: Perform at local events in Raleigh area.
 - 
-Learning Protein visualization: Extracting Uniprot and EBI protein data using APIs and plotting using R GGplot 
+Learning Protein visualization: Extracting Uniprot, Gnomad, EBI data using APIs and plotting using R GGplot 
 
 ![AlphaMissense_Pathogenicity_Heatmap](https://github.com/metviz/metviz/blob/main/AlphaMissense_Pathogenicity_Heatmap.png)
 
